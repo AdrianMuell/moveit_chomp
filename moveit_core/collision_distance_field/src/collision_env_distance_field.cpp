@@ -1665,6 +1665,8 @@ bool CollisionEnvDistanceField::getEnvironmentProximityGradients(
     const distance_field::DistanceFieldConstPtr& env_distance_field, GroupStateRepresentationPtr& gsr) const
 {
   bool in_collision = false;
+  ROS_ERROR_STREAM("Links_names: " <<gsr->dfce_->link_names_.size());
+
   for (unsigned int i = 0; i < gsr->dfce_->link_names_.size(); i++)
   {
     bool is_link = i < gsr->dfce_->link_names_.size();

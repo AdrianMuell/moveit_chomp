@@ -140,6 +140,75 @@ bool collision_detection::PosedDistanceField::getCollisionSphereGradients(
   return in_collision;
 }
 
+// bool collision_detection::getCollisionSphereGradients(const distance_field::DistanceField* distance_field,
+//                                                       const std::vector<CollisionSphere>& sphere_list,
+//                                                       const EigenSTL::vector_Vector3d& sphere_centers,
+//                                                       GradientInfo& gradient,
+//                                                       const collision_detection::CollisionType& type, double tolerance,
+//                                                       bool subtract_radii, double maximum_value,
+//                                                       bool stop_at_first_collision)
+// {
+//   // assumes gradient is properly initialized
+
+//   bool in_collision = false;
+
+//   // ROS_INFO_STREAM("\033[1;32m" << "Pointer Distance field" << distance_field << "\033[0m");
+
+//   ROS_ERROR_STREAM("Sphere_list: " << sphere_list.size());
+
+//   for (unsigned int i = 0; i < sphere_list.size(); i++)
+//   {
+//     Eigen::Vector3d p = sphere_centers[i];
+//     Eigen::Vector3d grad;
+//     bool in_bounds;
+//     double dist = distance_field->getDistanceGradient(p.x(), p.y(), p.z(), grad.x(), grad.y(), grad.z(), in_bounds);
+//     if (!in_bounds && grad.norm() > EPSILON)
+//     {
+//       ROS_DEBUG("Collision sphere point is out of bounds %lf, %lf, %lf", p.x(), p.y(), p.z());
+//       return true;
+//     }
+
+//     // ROS_INFO_STREAM("\033[1;32m" << i << ": " << p.x() << ", " << p.y() << ", " << p.z() << ", " << grad.x() << ", " << grad.y() << ", " << grad.z() << ", " << in_bounds << "\033[0m");
+//     if (dist < maximum_value)
+//     {
+//       if (subtract_radii)
+//       {
+//         dist -= sphere_list[i].radius_;
+
+//         if ((dist < 0) && (-dist >= tolerance))
+//         {
+//           in_collision = true;
+//         }
+//       }
+//       else
+//       {
+//         if (sphere_list[i].radius_ - dist > tolerance)
+//         {
+//           in_collision = true;
+//         }
+//       }
+
+//       if (dist < gradient.closest_distance)
+//       {
+//         gradient.closest_distance = dist;
+//       }
+
+//       if (dist < gradient.distances[i])
+//       {
+//         gradient.types[i] = type;
+//         gradient.distances[i] = dist;
+//         gradient.gradients[i] = grad;
+//       }
+//     }
+
+//     if (stop_at_first_collision && in_collision)
+//     {
+//       return true;
+//     }
+//   }
+//   return in_collision;
+// }
+
 bool collision_detection::getCollisionSphereGradients(const distance_field::DistanceField* distance_field,
                                                       const std::vector<CollisionSphere>& sphere_list,
                                                       const EigenSTL::vector_Vector3d& sphere_centers,
@@ -151,50 +220,49 @@ bool collision_detection::getCollisionSphereGradients(const distance_field::Dist
   // assumes gradient is properly initialized
 
   bool in_collision = false;
+  EigenSTL::vector_Vector3d point = sphere_centers;
+  EigenSTL::vector_Vector3d grad;
+  std::vector<bool> in_bounds;
+  std::vector<double> dist;
+  distance_field->getDistanceGradient_uts(point, grad, dist, in_bounds);
+
+  // ROS_INFO_STREAM("\033[1;32m" << "Pointer Distance field" << distance_field << "\033[0m");
   for (unsigned int i = 0; i < sphere_list.size(); i++)
   {
-    Eigen::Vector3d p = sphere_centers[i];
-    Eigen::Vector3d grad;
-    bool in_bounds;
-    double dist = distance_field->getDistanceGradient(p.x(), p.y(), p.z(), grad.x(), grad.y(), grad.z(), in_bounds);
-    if (!in_bounds && grad.norm() > EPSILON)
-    {
-      ROS_DEBUG("Collision sphere point is out of bounds %lf, %lf, %lf", p.x(), p.y(), p.z());
-      return true;
-    }
-
-    if (dist < maximum_value)
+    // ROS_INFO_STREAM("\033[1;32m" << i << ": " << p.x() << ", " << p.y() << ", " << p.z() << ", " << grad.x() << ", " << grad.y() << ", " << grad.z() << ", " << in_bounds << "\033[0m");
+  
+    if (dist[i] < maximum_value)
     {
       if (subtract_radii)
       {
-        dist -= sphere_list[i].radius_;
+        dist[i] -= sphere_list[i].radius_;
 
-        if ((dist < 0) && (-dist >= tolerance))
+        if ((dist[i] < 0) && (-dist[i] >= tolerance))
         {
           in_collision = true;
         }
       }
       else
       {
-        if (sphere_list[i].radius_ - dist > tolerance)
+        if (sphere_list[i].radius_ - dist[i] > tolerance)
         {
           in_collision = true;
         }
       }
 
-      if (dist < gradient.closest_distance)
+      if (dist[i] < gradient.closest_distance)
       {
-        gradient.closest_distance = dist;
+        gradient.closest_distance = dist[i];
       }
 
-      if (dist < gradient.distances[i])
+      if (dist[i] < gradient.distances[i])
       {
         gradient.types[i] = type;
-        gradient.distances[i] = dist;
-        gradient.gradients[i] = grad;
+        gradient.distances[i] = dist[i];
+        gradient.gradients[i] = grad[i];
       }
     }
-
+  
     if (stop_at_first_collision && in_collision)
     {
       return true;

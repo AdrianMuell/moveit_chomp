@@ -85,6 +85,39 @@ double DistanceField::getDistanceGradient(double x, double y, double z, double& 
   return getDistance(gx, gy, gz);
 }
 
+bool DistanceField::getDistanceGradient_uts(EigenSTL::vector_Vector3d& points, EigenSTL::vector_Vector3d& grad, std::vector<double>& distance, std::vector<bool>& in_bounds) const
+{
+  int gx, gy, gz;
+
+  static ros::NodeHandle nh("~");
+  static ros::ServiceClient log_gpis_ = nh.serviceClient<gpismap_ros::GetDistanceGradient>("/getDistanceGradient");
+
+  gpismap_ros::GetDistanceGradient srv;
+  std::vector<double> temp(points[0].data(),points[0].data()+points.size()*3);
+  srv.request.points = temp;
+
+  if (log_gpis_.call(srv))
+  {
+    for(unsigned int i = 0; i < srv.response.gradients.size()/3; i++)
+    {
+      grad.emplace_back(Eigen::Map<Eigen::Vector3d>(srv.response.gradients.data()+i*3));
+    }
+
+    for(unsigned int i = 0; i < srv.response.distances.size(); i++)
+    {
+      distance.push_back(srv.response.distances[i]);
+      in_bounds.push_back(srv.response.in_bounds[i]);
+    }
+  }
+  else
+  {
+    ROS_ERROR("Failed to call service add_two_ints");
+    return false;
+  }
+
+  return true;
+}
+
 void DistanceField::getIsoSurfaceMarkers(double min_distance, double max_distance, const std::string& frame_id,
                                          const ros::Time stamp, visualization_msgs::Marker& inf_marker) const
 {

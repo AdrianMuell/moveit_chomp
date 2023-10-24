@@ -45,6 +45,11 @@
 #include <eigen_stl_containers/eigen_stl_containers.h>
 #include <moveit/macros/class_forward.h>
 
+#include <ros/ros.h>
+#include <gpismap_ros/GetDistanceGradient.h>
+// #include <eigen_conversions/eigen_msg.h>
+// #include <geometry_msgs/Vector3.h>
+
 namespace shapes
 {
 MOVEIT_CLASS_FORWARD(Shape);  // Defines ShapePtr, ConstPtr, WeakPtr... etc
@@ -320,6 +325,9 @@ public:
    */
   double getDistanceGradient(double x, double y, double z, double& gradient_x, double& gradient_y, double& gradient_z,
                              bool& in_bounds) const;
+
+  bool getDistanceGradient_uts(EigenSTL::vector_Vector3d& point, 
+                                  EigenSTL::vector_Vector3d& grad, std::vector<double>& distance, std::vector<bool>& in_bounds) const;
   /**
    * \brief Gets the distance to the closest obstacle at the given
    * integer cell location. The particulars of this function are

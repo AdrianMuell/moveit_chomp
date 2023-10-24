@@ -87,6 +87,7 @@ COMPONENTS
   pybind11_catkin
   pluginlib
   angles
+  gpismap_ros
 )
 
 catkin_python_setup()
@@ -180,6 +181,7 @@ catkin_package(
     ruckig
     urdfdom
     urdfdom_headers
+    gpismap_ros
     ${BULLET_ENABLE}
   CFG_EXTRAS
     moveit.cmake
