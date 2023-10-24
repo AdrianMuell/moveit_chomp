@@ -215,5 +215,11 @@ private:
   void calculatePseudoInverse();
   void computeJointProperties(int trajectoryPoint);
   bool isCurrentTrajectoryMeshToMeshCollisionFree() const;
+
+  void print_struct();
+  void print_EigenSTL_vector_Vector3d(std::string name, EigenSTL::vector_Vector3d data);
+  void print_vector(std::string name, std::vector<double> data);
+  // void print_CollisionType_vector(std::string name, std::vector<collision_detection::CollisionType> data);
+  // void print_CollisionType(collision_detection::CollisionType data);
 };
 }  // namespace chomp

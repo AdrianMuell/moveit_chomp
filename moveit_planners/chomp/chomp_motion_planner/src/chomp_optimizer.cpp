@@ -44,6 +44,7 @@
 #include <eigen3/Eigen/LU>
 #include <eigen3/Eigen/Core>
 #include <random>
+#include <chomp_motion_planner/ros_color_stream.hpp>
 
 namespace chomp
 {
@@ -318,8 +319,8 @@ bool ChompOptimizer::optimize()
     ros::WallTime for_time = ros::WallTime::now();
     performForwardKinematics();
     ROS_DEBUG_STREAM("Forward kinematics took " << (ros::WallTime::now() - for_time));
-    double c_cost = getCollisionCost();
-    double s_cost = getSmoothnessCost();
+    double c_cost = getCollisionCost(); // Adrian: f(obs)
+    double s_cost = getSmoothnessCost(); // Adrian: f(prior)
     double cost = c_cost + s_cost;
 
     // ROS_INFO_STREAM("Collision cost " << cCost << " smoothness cost " << sCost);
@@ -932,10 +933,22 @@ void ChompOptimizer::performForwardKinematics()
     setRobotStateFromPoint(group_trajectory_, i);
     ros::WallTime grad = ros::WallTime::now();
 
+    // Adrian: Hier müssen wir ansetzen
+    // ROS_RED_STREAM(!gsr_);
+    // ROS_CYAN_STREAM(req.group_name);
+    // ROS_CYAN_STREAM(req.contacts);
+    // ROS_CYAN_STREAM(req.max_contacts);
+    // ROS_CYAN_STREAM(req.max_contacts_per_pair);
+
+    // ROS_RED_STREAM(i);
+
+
     hy_env_->getCollisionGradients(req, res, state_, nullptr, gsr_);
     total_dur += (ros::WallTime::now() - grad);
     computeJointProperties(i);
     state_is_in_collision_[i] = false;
+
+    // print_struct();
 
     // Keep vars in scope
     {
@@ -1125,5 +1138,74 @@ void ChompOptimizer::updatePositionFromMomentum()
   group_trajectory_.getFreeTrajectoryBlock() += eps * momentum_;
 }
 */
+
+void ChompOptimizer::print_struct()
+{
+  for (const collision_detection::GradientInfo& info : gsr_->gradients_)
+  {
+    std::cout << "###############################" << std::endl;
+    std::cout << "closest_distance: " << info.closest_distance << std::endl;
+    std::cout << "collision: " << info.collision << std::endl;
+    print_EigenSTL_vector_Vector3d("sphere_locations",info.sphere_locations);
+    print_vector("distances",info.distances);
+    print_EigenSTL_vector_Vector3d("gradients",info.gradients);
+    // print_CollisionType_vector("types",info.types);
+    print_vector("sphere_radii",info.sphere_radii);
+    std::cout << "joint_name: " << info.joint_name << std::endl;
+  }
+}
+
+void ChompOptimizer::print_EigenSTL_vector_Vector3d(std::string name, EigenSTL::vector_Vector3d data)
+{
+  std::cout << name << std::endl;
+    for (size_t k = 0; k < data.size(); k++)
+    {
+      std::cout << "\t" << data[k].x() << ", " << data[k].y() << ", " << data[k].z() << std::endl;
+    }
+}
+
+void ChompOptimizer::print_vector(std::string name, std::vector<double> data)
+{
+  std::cout << name << std::endl;
+  std::cout << "\t";
+    for (size_t k = 0; k < data.size(); k++)
+    {
+      std::cout << data[k] << ", ";
+    }
+    std::cout << std::endl;
+}
+
+// void ChompOptimizer::print_CollisionType_vector(std::string name, std::vector<collision_detection::CollisionType> data)
+// {
+//   std::cout << name << std::endl;
+//   std::cout << "\t";
+//     for (size_t k = 0; k < data.size(); k++)
+//     {
+//       std::cout << print_CollisionType(data[k]) << ", ";
+//     }
+//     std::cout << std::endl;
+// }
+
+// void ChompOptimizer::print_CollisionType(collision_detection::CollisionType data)
+// {
+//   switch (data)
+//   {
+//   case 0:
+//     std::cout << "NONE";
+//     break;
+//   case 1:
+//     std::cout << "SELF";
+//     break;
+//   case 2:
+//     std::cout << "INTRA";
+//     break;
+//   case 3:
+//     std::cout << "ENVIRONMENT";
+//     break;
+  
+//   default:
+//     break;
+//   }
+// }
 
 }  // namespace chomp
