@@ -87,7 +87,7 @@ COMPONENTS
   pybind11_catkin
   pluginlib
   angles
-  gpismap_ros
+  gpismap_ros_msg
 )
 
 catkin_python_setup()
@@ -173,6 +173,7 @@ catkin_package(
     tf2_geometry_msgs
     trajectory_msgs
     visualization_msgs
+    gpismap_ros_msg
   DEPENDS
     Boost
     EIGEN3
@@ -181,7 +182,6 @@ catkin_package(
     ruckig
     urdfdom
     urdfdom_headers
-    gpismap_ros
     ${BULLET_ENABLE}
   CFG_EXTRAS
     moveit.cmake

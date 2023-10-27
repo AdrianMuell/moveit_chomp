@@ -90,9 +90,9 @@ bool DistanceField::getDistanceGradient_uts(EigenSTL::vector_Vector3d& points, E
   int gx, gy, gz;
 
   static ros::NodeHandle nh("~");
-  static ros::ServiceClient log_gpis_ = nh.serviceClient<gpismap_ros::GetDistanceGradient>("/getDistanceGradient");
+  static ros::ServiceClient log_gpis_ = nh.serviceClient<gpismap_ros_msg::GetDistanceGradient>("/query_dist_field");
 
-  gpismap_ros::GetDistanceGradient srv;
+  gpismap_ros_msg::GetDistanceGradient srv;
   std::vector<double> temp(points[0].data(),points[0].data()+points.size()*3);
   srv.request.points = temp;
 
@@ -111,7 +111,7 @@ bool DistanceField::getDistanceGradient_uts(EigenSTL::vector_Vector3d& points, E
   }
   else
   {
-    ROS_ERROR("Failed to call service add_two_ints");
+    ROS_ERROR("Failed to call service query_dist_field");
     return false;
   }
 

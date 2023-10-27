@@ -55,7 +55,7 @@
   <depend>visualization_msgs</depend>
   <depend>xmlrpcpp</depend>
   <depend>pluginlib</depend>
-  <depend>gpismap_ros</depend>
+  <depend>gpismap_ros_msg</depend>
   <build_depend>angles</build_depend>
 
   <doc_depend>python3-sphinx-rtd-theme</doc_depend>
