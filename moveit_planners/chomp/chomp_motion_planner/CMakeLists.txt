@@ -4,7 +4,7 @@ project(chomp_motion_planner)
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   moveit_core
-  gpismap_ros_msg
+  gpismap_ros
 )
 moveit_build_options()
 
