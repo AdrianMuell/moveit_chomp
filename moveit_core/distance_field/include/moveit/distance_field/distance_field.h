@@ -46,7 +46,7 @@
 #include <moveit/macros/class_forward.h>
 
 #include <ros/ros.h>
-#include <gpismap_ros_msg/GetDistanceGradient.h>
+#include <gpismap_ros/GetDistanceGradient.h>
 // #include <eigen_conversions/eigen_msg.h>
 // #include <geometry_msgs/Vector3.h>
 

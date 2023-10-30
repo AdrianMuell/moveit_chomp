@@ -173,7 +173,7 @@ catkin_package(
     tf2_geometry_msgs
     trajectory_msgs
     visualization_msgs
-    gpismap_ros_msg
+    gpismap_ros
   DEPENDS
     Boost
     EIGEN3

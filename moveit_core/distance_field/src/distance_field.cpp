@@ -92,7 +92,7 @@ bool DistanceField::getDistanceGradient_uts(EigenSTL::vector_Vector3d& points, E
   static ros::NodeHandle nh("~");
   static ros::ServiceClient log_gpis_ = nh.serviceClient<gpismap_ros_msg::GetDistanceGradient>("/query_dist_field");
 
-  gpismap_ros_msg::GetDistanceGradient srv;
+  gpismap_ros::GetDistanceGradient srv;
   std::vector<double> temp(points[0].data(),points[0].data()+points.size()*3);
   srv.request.points = temp;
 
