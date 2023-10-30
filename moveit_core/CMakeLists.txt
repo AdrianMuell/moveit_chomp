@@ -87,7 +87,7 @@ COMPONENTS
   pybind11_catkin
   pluginlib
   angles
-  gpismap_ros_msg
+  gpismap_ros
 )
 
 catkin_python_setup()
