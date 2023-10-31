@@ -1665,7 +1665,7 @@ bool CollisionEnvDistanceField::getEnvironmentProximityGradients(
     const distance_field::DistanceFieldConstPtr& env_distance_field, GroupStateRepresentationPtr& gsr) const
 {
   bool in_collision = false;
-  ROS_ERROR_STREAM("Links_names: " <<gsr->dfce_->link_names_.size());
+  // ROS_ERROR_STREAM("Links_names: " <<gsr->dfce_->link_names_.size());
 
   for (unsigned int i = 0; i < gsr->dfce_->link_names_.size(); i++)
   {
@@ -1690,7 +1690,7 @@ bool CollisionEnvDistanceField::getEnvironmentProximityGradients(
       sphere_centers_1 = &(gsr->attached_body_decompositions_[i - gsr->dfce_->link_names_.size()]->getSphereCenters());
     }
 
-    bool coll = getCollisionSphereGradients(env_distance_field.get(), *collision_spheres_1, *sphere_centers_1,
+    bool coll = getCollisionSphereGradients_uts(env_distance_field.get(), *collision_spheres_1, *sphere_centers_1,
                                             gsr->gradients_[i], ENVIRONMENT, collision_tolerance_, false,
                                             max_propogation_distance_, false);
     if (coll)

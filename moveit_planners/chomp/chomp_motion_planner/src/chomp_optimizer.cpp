@@ -545,7 +545,8 @@ bool ChompOptimizer::isCurrentTrajectoryMeshToMeshCollisionFree() const
   }
   moveit_msgs::RobotState start_state_msg;
   moveit::core::robotStateToRobotStateMsg(start_state_, start_state_msg);
-  return planning_scene_->isPathValid(start_state_msg, traj, planning_group_);
+  planning_scene_->isPathValid(start_state_msg, traj, planning_group_);
+  return false;
 }
 
 /// TODO: HMC BASED COMMENTED CODE BELOW, Need to uncomment and perform extensive testing by varying the HMC parameters
@@ -990,7 +991,7 @@ void ChompOptimizer::performForwardKinematics()
     }
   }
 
-  // ROS_INFO_STREAM("Total dur " << total_dur << " total checks " << end-start+1);
+  ROS_DEBUG_STREAM("Total dur " << total_dur << " total checks " << end-start+1);
 
   // now, get the vel and acc for each collision point (using finite differencing)
   for (int i = free_vars_start_; i <= free_vars_end_; i++)

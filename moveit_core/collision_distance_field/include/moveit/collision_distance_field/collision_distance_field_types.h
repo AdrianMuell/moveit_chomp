@@ -204,6 +204,13 @@ bool getCollisionSphereGradients(const distance_field::DistanceField* distance_f
                                  const CollisionType& type, double tolerance, bool subtract_radii, double maximum_value,
                                  bool stop_at_first_collision);
 
+bool getCollisionSphereGradients_uts(const distance_field::DistanceField* distance_field,
+                                    const std::vector<CollisionSphere>& sphere_list,
+                                    const EigenSTL::vector_Vector3d& sphere_centers, GradientInfo& gradient,
+                                    const collision_detection::CollisionType& type, double tolerance,
+                                    bool subtract_radii, double maximum_value,
+                                    bool stop_at_first_collision);
+
 bool getCollisionSphereCollision(const distance_field::DistanceField* distance_field,
                                  const std::vector<CollisionSphere>& sphere_list,
                                  const EigenSTL::vector_Vector3d& sphere_centers, double maximum_value,
