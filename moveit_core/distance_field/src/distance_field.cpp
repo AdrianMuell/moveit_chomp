@@ -87,7 +87,9 @@ double DistanceField::getDistanceGradient(double x, double y, double z, double& 
 
 bool DistanceField::getDistanceGradient_uts(EigenSTL::vector_Vector3d& points, EigenSTL::vector_Vector3d& grad, std::vector<double>& distance, std::vector<bool>& in_bounds) const
 {
-  int gx, gy, gz;
+  // static float counter = 1;
+  // static float time_average = 0;
+  // static float time_average_answer = 0;
 
   static ros::NodeHandle nh("~");
   static ros::ServiceClient log_gpis_ = nh.serviceClient<gpismap_ros::GetDistanceGradient>("/query_dist_field");
@@ -96,8 +98,17 @@ bool DistanceField::getDistanceGradient_uts(EigenSTL::vector_Vector3d& points, E
   std::vector<double> temp(points[0].data(),points[0].data()+points.size()*3);
   srv.request.points = temp;
 
+  // ros::WallTime call_time = ros::WallTime::now();
+
   if (log_gpis_.call(srv))
   {
+    // time_average += (ros::WallTime::now().toSec() - call_time.toSec());
+    // time_average_answer += (ros::Time::now().toSec() - srv.response.stamp.toSec());
+    // ROS_INFO_STREAM(counter << " call took " << (ros::WallTime::now().toSec() - call_time.toSec()) << "/" <<  time_average/counter << " seconds. Anser allown took: " << ros::Time::now().toSec() - srv.response.stamp.toSec() << "/" <<time_average_answer/counter);
+    // counter++;
+
+    // ROS_INFO_STREAM(srv.response.gradients[0] << "," << srv.response.gradients[1] << "," << srv.response.gradients[2] << "," << srv.response.distances[0]);
+
     for(unsigned int i = 0; i < srv.response.gradients.size()/3; i++)
     {
       grad.emplace_back(Eigen::Map<Eigen::Vector3d>(srv.response.gradients.data()+i*3));

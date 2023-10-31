@@ -154,7 +154,7 @@ bool collision_detection::getCollisionSphereGradients(const distance_field::Dist
 
   // ROS_INFO_STREAM("\033[1;32m" << "Pointer Distance field" << distance_field << "\033[0m");
 
-  ROS_ERROR_STREAM("Sphere_list: " << sphere_list.size());
+  // ROS_ERROR_STREAM("Sphere_list: " << sphere_list.size());
 
   for (unsigned int i = 0; i < sphere_list.size(); i++)
   {
