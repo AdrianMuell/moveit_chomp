@@ -1255,54 +1255,41 @@ bool ChompOptimizer::getDistanceGradient_uts(std::vector<std::vector<EigenSTL::v
   // static ros::NodeHandle nh("~");
   // static ros::ServiceClient log_gpis_ = nh.serviceClient<gpismap_ros::GetDistanceGradient>("/query_dist_field");
   gpismap_ros::GetDistanceGradient srv;
-  std::vector<double> temp;
-  // std::vector<double> v;
-
-  std::cout << "Node erstellt" << std::endl;
-
   for(int t_point = 0; t_point < sphere_centers.size(); t_point++)
   {
-    for(unsigned int joints = 0; joints < sphere_centers[t_point].size(); joints++)
+    for(int joints = 0; joints < sphere_centers[t_point].size(); joints++)
     {
-      for (unsigned int i = 0; i < sphere_centers[t_point][joints].size(); i++)
+      for (int i = 0; i < sphere_centers[t_point][joints].size(); i++)
       {
         // std::vector<double> v (sphere_centers[t_point][joints][0].data(),sphere_centers[t_point][joints][0].data()+sphere_centers[t_point][joints].size()*3);
         // std::vector<double> v = {sphere_centers[t_point][joints][i][0],sphere_centers[t_point][joints][i][1],sphere_centers[t_point][joints][2]};
         // v.clear();
-        temp.push_back(sphere_centers[t_point][joints][i][0]);
-        temp.push_back(sphere_centers[t_point][joints][i][1]);
-        temp.push_back(sphere_centers[t_point][joints][i][2]);
+        srv.request.points.push_back(sphere_centers[t_point][joints][i][0]);
+        srv.request.points.push_back(sphere_centers[t_point][joints][i][1]);
+        srv.request.points.push_back(sphere_centers[t_point][joints][i][2]);
         // temp.insert(std::end(temp), std::begin(v), std::end(v));
       }
     }
   }
-
-  std::cout << "Punkte flachgedrückt" << std::endl;
-
-  srv.request.points = temp;
-
   if (log_gpis_.call(srv))
   {
-    std::cout << "Service erfolgreich angerufen" << std::endl;
-
     int counter = 0;
     grad.resize(sphere_centers.size());
     distance.resize(sphere_centers.size());
     in_bounds.resize(sphere_centers.size());
 
-    for(int t_point=0;t_point < sphere_centers.size();t_point++)
+    for(int t_point=0; t_point < sphere_centers.size(); t_point++)
     {
       grad[t_point].resize(sphere_centers[t_point].size());
       distance[t_point].resize(sphere_centers[t_point].size());
       in_bounds[t_point].resize(sphere_centers[t_point].size());
 
-      for(unsigned int joints = 0; joints < sphere_centers[t_point].size(); joints++)
+      for(int joints = 0; joints < sphere_centers[t_point].size(); joints++)
       {
-        grad[t_point][joints].resize(sphere_centers[t_point][joints].size());
-        distance[t_point][joints].resize(sphere_centers[t_point][joints].size());
-        in_bounds[t_point][joints].resize(sphere_centers[t_point][joints].size());
-        
-        for (unsigned int i = 0; i < sphere_centers[t_point][joints].size(); i++)
+        grad[t_point][joints].resize(sphere_centers[t_point][joints].size(), Eigen::Vector3d(0,0,0));
+        distance[t_point][joints].resize(sphere_centers[t_point][joints].size(),0);
+        in_bounds[t_point][joints].resize(sphere_centers[t_point][joints].size(), true);
+        for (int i = 0; i < sphere_centers[t_point][joints].size(); i++)
         {
           grad[t_point][joints][i] = Eigen::Vector3d(srv.response.gradients[counter*3], srv.response.gradients[counter*3+1], srv.response.gradients[counter*3+2]);
           distance[t_point][joints][i] = srv.response.distances[counter];
@@ -1310,7 +1297,6 @@ bool ChompOptimizer::getDistanceGradient_uts(std::vector<std::vector<EigenSTL::v
           counter++;
         }
       }
-      std::cout << "t_point: " << t_point+1 << " / " << sphere_centers.size() << std::endl;
     }
   }
   else
@@ -1319,6 +1305,7 @@ bool ChompOptimizer::getDistanceGradient_uts(std::vector<std::vector<EigenSTL::v
     return false;
   }
   std::cout << "getDistanceGradient_uts ende" << std::endl;
+  return true;
 }
 
 }
