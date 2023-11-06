@@ -48,6 +48,9 @@
 #include <Eigen/StdVector>
 #include <vector>
 
+#include <ros/ros.h>
+#include <gpismap_ros/GetDistanceGradient.h>
+
 namespace chomp
 {
 class ChompOptimizer
@@ -219,6 +222,24 @@ private:
   void print_struct();
   void print_EigenSTL_vector_Vector3d(std::string name, EigenSTL::vector_Vector3d data);
   void print_vector(std::string name, std::vector<double> data);
+
+
+  bool getCollisionSpheres_uts(collision_detection::GroupStateRepresentationPtr gsr,int t_point,
+                               std::vector<std::vector<EigenSTL::vector_Vector3d>>& sphere_centers, 
+                               std::vector<std::vector<std::vector<collision_detection::CollisionSphere>>>& sphere_list);
+
+  bool getCollisionSphereGradients_uts(std::vector<collision_detection::GroupStateRepresentation>& gsr, 
+                                       std::vector<std::vector<EigenSTL::vector_Vector3d>>& sphere_centers, 
+                                       std::vector<std::vector<std::vector<collision_detection::CollisionSphere>>>& sphere_list);
+
+  bool getDistanceGradient_uts(std::vector<std::vector<EigenSTL::vector_Vector3d>>& sphere_centers, 
+                               std::vector<std::vector<EigenSTL::vector_Vector3d>>& grad, 
+                               std::vector<std::vector<std::vector<double>>>& dist, 
+                               std::vector<std::vector<std::vector<bool>>>& in_bounds);
+
+  ros::NodeHandle *n_;
+  ros::ServiceClient log_gpis_;
+
   // void print_CollisionType_vector(std::string name, std::vector<collision_detection::CollisionType> data);
   // void print_CollisionType(collision_detection::CollisionType data);
 };

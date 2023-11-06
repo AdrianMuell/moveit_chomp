@@ -4,12 +4,14 @@ project(chomp_motion_planner)
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   moveit_core
+  gpismap_ros
 )
 moveit_build_options()
 
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES ${PROJECT_NAME}
+  CATKIN_DEPENDS gpismap_ros
 )
 
 include_directories(include)
