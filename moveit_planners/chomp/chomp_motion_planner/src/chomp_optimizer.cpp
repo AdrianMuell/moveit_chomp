@@ -87,6 +87,9 @@ ChompOptimizer::ChompOptimizer(ChompTrajectory* trajectory, const planning_scene
     return;
   }
 
+  n_ = new ros::NodeHandle();
+  log_gpis_ = n_->serviceClient<gpismap_ros::GetDistanceGradient>("/query_dist_field");
+
   initialize();
 }
 
@@ -910,6 +913,10 @@ void ChompOptimizer::performForwardKinematics()
   double inv_time = 1.0 / group_trajectory_.getDiscretization();
   double inv_time_sq = inv_time * inv_time;
 
+  std::vector<collision_detection::GroupStateRepresentation> gsr_vector;
+  std::vector<std::vector<std::vector<collision_detection::CollisionSphere>>> collision_spheres;
+  std::vector<std::vector<EigenSTL::vector_Vector3d>> sphere_centers;
+
   // calculate the forward kinematics for the fixed states only in the first iteration:
   int start = free_vars_start_;
   int end = free_vars_end_;
@@ -923,55 +930,61 @@ void ChompOptimizer::performForwardKinematics()
 
   ros::WallDuration total_dur(0.0);
 
+  collision_spheres.resize(num_vars_all_);
+  sphere_centers.resize(num_vars_all_);
+
   // for each point in the trajectory
-  for (int i = start; i <= end; ++i)
+  for (int t_point = start; t_point <= end; ++t_point)
   {
     // Set Robot state from trajectory point...
     collision_detection::CollisionRequest req;
     collision_detection::CollisionResult res;
     req.group_name = planning_group_;
-    setRobotStateFromPoint(group_trajectory_, i);
-    ros::WallTime grad = ros::WallTime::now();
-
-    // Adrian: Hier müssen wir ansetzen
-    // ROS_RED_STREAM(!gsr_);
-    // ROS_CYAN_STREAM(req.group_name);
-    // ROS_CYAN_STREAM(req.contacts);
-    // ROS_CYAN_STREAM(req.max_contacts);
-    // ROS_CYAN_STREAM(req.max_contacts_per_pair);
-
-    // ROS_RED_STREAM(i);
-
+    setRobotStateFromPoint(group_trajectory_, t_point);
+    computeJointProperties(t_point);
 
     hy_env_->getCollisionGradients(req, res, state_, nullptr, gsr_);
-    total_dur += (ros::WallTime::now() - grad);
-    computeJointProperties(i);
-    state_is_in_collision_[i] = false;
+
+    gsr_vector.push_back(*gsr_);
+
+    getCollisionSpheres_uts(gsr_,t_point,sphere_centers,collision_spheres);
+
+  }
+
+  ros::WallTime grad = ros::WallTime::now();
+
+  getCollisionSphereGradients_uts(gsr_vector,sphere_centers,collision_spheres);
+
+  total_dur += (ros::WallTime::now() - grad);
+
+  for (int t_point = start; t_point <= end; ++t_point)
+  {
+    state_is_in_collision_[t_point] = false;
 
     // print_struct();
 
     // Keep vars in scope
     {
       size_t j = 0;
-      for (const collision_detection::GradientInfo& info : gsr_->gradients_)
+      for (const collision_detection::GradientInfo& info : gsr_vector[t_point].gradients_)
       {
         for (size_t k = 0; k < info.sphere_locations.size(); k++)
         {
-          collision_point_pos_eigen_[i][j][0] = info.sphere_locations[k].x();
-          collision_point_pos_eigen_[i][j][1] = info.sphere_locations[k].y();
-          collision_point_pos_eigen_[i][j][2] = info.sphere_locations[k].z();
+          collision_point_pos_eigen_[t_point][j][0] = info.sphere_locations[k].x();
+          collision_point_pos_eigen_[t_point][j][1] = info.sphere_locations[k].y();
+          collision_point_pos_eigen_[t_point][j][2] = info.sphere_locations[k].z();
 
-          collision_point_potential_[i][j] =
+          collision_point_potential_[t_point][j] =
               getPotential(info.distances[k], info.sphere_radii[k], parameters_->min_clearance_);
-          collision_point_potential_gradient_[i][j][0] = info.gradients[k].x();
-          collision_point_potential_gradient_[i][j][1] = info.gradients[k].y();
-          collision_point_potential_gradient_[i][j][2] = info.gradients[k].z();
+          collision_point_potential_gradient_[t_point][j][0] = info.gradients[k].x();
+          collision_point_potential_gradient_[t_point][j][1] = info.gradients[k].y();
+          collision_point_potential_gradient_[t_point][j][2] = info.gradients[k].z();
 
-          point_is_in_collision_[i][j] = (info.distances[k] - info.sphere_radii[k] < info.sphere_radii[k]);
+          point_is_in_collision_[t_point][j] = (info.distances[k] - info.sphere_radii[k] < info.sphere_radii[k]);
 
-          if (point_is_in_collision_[i][j])
+          if (point_is_in_collision_[t_point][j])
           {
-            state_is_in_collision_[i] = true;
+            state_is_in_collision_[t_point] = true;
             // if(is_collision_free_ == true) {
             //   ROS_INFO_STREAM("We know it's not collision free " << g);
             //   ROS_INFO_STREAM("Sphere location " << info.sphere_locations[k].x() << " " <<
@@ -990,7 +1003,7 @@ void ChompOptimizer::performForwardKinematics()
     }
   }
 
-  // ROS_INFO_STREAM("Total dur " << total_dur << " total checks " << end-start+1);
+  ROS_DEBUG_STREAM("Total dur " << total_dur << " total checks " << end-start+1);
 
   // now, get the vel and acc for each collision point (using finite differencing)
   for (int i = free_vars_start_; i <= free_vars_end_; i++)
@@ -1026,38 +1039,39 @@ void ChompOptimizer::setRobotStateFromPoint(ChompTrajectory& group_trajectory, i
   state_.update();
 }
 
-void ChompOptimizer::perturbTrajectory()
-{
-  // int mid_point = (free_vars_start_ + free_vars_end_) / 2;
-  if (worst_collision_cost_state_ < 0)
-    return;
-  int mid_point = worst_collision_cost_state_;
-  moveit::core::RobotState random_state = state_;
-  const moveit::core::JointModelGroup* planning_group = state_.getJointModelGroup(planning_group_);
-  random_state.setToRandomPositions(planning_group);
-  std::vector<double> vals;
-  random_state.copyJointGroupPositions(planning_group_, vals);
-  double* ptr = &vals[0];
-  Eigen::Map<Eigen::VectorXd> random_matrix(ptr, vals.size());
-  // Eigen::VectorXd random_matrix = vals;
+// Is Not needed
+// void ChompOptimizer::perturbTrajectory()
+// {
+//   // int mid_point = (free_vars_start_ + free_vars_end_) / 2;
+//   if (worst_collision_cost_state_ < 0)
+//     return;
+//   int mid_point = worst_collision_cost_state_;
+//   moveit::core::RobotState random_state = state_;
+//   const moveit::core::JointModelGroup* planning_group = state_.getJointModelGroup(planning_group_);
+//   random_state.setToRandomPositions(planning_group);
+//   std::vector<double> vals;
+//   random_state.copyJointGroupPositions(planning_group_, vals);
+//   double* ptr = &vals[0];
+//   Eigen::Map<Eigen::VectorXd> random_matrix(ptr, vals.size());
+//   // Eigen::VectorXd random_matrix = vals;
 
-  // convert the state into an increment
-  random_matrix -= group_trajectory_.getTrajectoryPoint(mid_point).transpose();
+//   // convert the state into an increment
+//   random_matrix -= group_trajectory_.getTrajectoryPoint(mid_point).transpose();
 
-  // project the increment orthogonal to joint velocities
-  group_trajectory_.getJointVelocities(mid_point, joint_state_velocities_);
-  joint_state_velocities_.normalize();
-  random_matrix = (Eigen::MatrixXd::Identity(num_joints_, num_joints_) -
-                   joint_state_velocities_ * joint_state_velocities_.transpose()) *
-                  random_matrix;
+//   // project the increment orthogonal to joint velocities
+//   group_trajectory_.getJointVelocities(mid_point, joint_state_velocities_);
+//   joint_state_velocities_.normalize();
+//   random_matrix = (Eigen::MatrixXd::Identity(num_joints_, num_joints_) -
+//                    joint_state_velocities_ * joint_state_velocities_.transpose()) *
+//                   random_matrix;
 
-  int mp_free_vars_index = mid_point - free_vars_start_;
-  for (int i = 0; i < num_joints_; i++)
-  {
-    group_trajectory_.getFreeJointTrajectoryBlock(i) +=
-        joint_costs_[i].getQuadraticCostInverse().col(mp_free_vars_index) * random_state_(i);
-  }
-}
+//   int mp_free_vars_index = mid_point - free_vars_start_;
+//   for (int i = 0; i < num_joints_; i++)
+//   {
+//     group_trajectory_.getFreeJointTrajectoryBlock(i) +=
+//         joint_costs_[i].getQuadraticCostInverse().col(mp_free_vars_index) * random_state_(i);
+//   }
+// }
 
 /// TODO: HMC BASED COMMENTED CODE BELOW, Need to uncomment and perform extensive testing by varying the HMC parameters
 /// values in the chomp_planning.yaml file so that CHOMP can find optimal paths
@@ -1139,73 +1153,172 @@ void ChompOptimizer::updatePositionFromMomentum()
 }
 */
 
-void ChompOptimizer::print_struct()
+bool ChompOptimizer::getCollisionSpheres_uts(collision_detection::GroupStateRepresentationPtr gsr,int t_point,
+                                             std::vector<std::vector<EigenSTL::vector_Vector3d>>& sphere_centers, 
+                                             std::vector<std::vector<std::vector<collision_detection::CollisionSphere>>>& collision_spheres)
 {
-  for (const collision_detection::GradientInfo& info : gsr_->gradients_)
+  collision_spheres[t_point].resize(gsr->dfce_->link_names_.size());
+  sphere_centers[t_point].resize(gsr->dfce_->link_names_.size());
+
+  for (unsigned int link = 0; link < gsr->dfce_->link_names_.size(); link++)
   {
-    std::cout << "###############################" << std::endl;
-    std::cout << "closest_distance: " << info.closest_distance << std::endl;
-    std::cout << "collision: " << info.collision << std::endl;
-    print_EigenSTL_vector_Vector3d("sphere_locations",info.sphere_locations);
-    print_vector("distances",info.distances);
-    print_EigenSTL_vector_Vector3d("gradients",info.gradients);
-    // print_CollisionType_vector("types",info.types);
-    print_vector("sphere_radii",info.sphere_radii);
-    std::cout << "joint_name: " << info.joint_name << std::endl;
+    bool is_link = link < gsr->dfce_->link_names_.size();
+
+    if (is_link && !gsr->dfce_->link_has_geometry_[link])
+    {
+      continue;
+    }
+
+    if (is_link)
+    {
+      collision_spheres[t_point][link] = (gsr->link_body_decompositions_[link]->getCollisionSpheres());
+      sphere_centers[t_point][link] = (gsr->link_body_decompositions_[link]->getSphereCenters());
+    }
+    else
+    {
+      collision_spheres[t_point][link] = (gsr->attached_body_decompositions_[link - gsr->dfce_->link_names_.size()]->getCollisionSpheres());
+      sphere_centers[t_point][link] = (gsr->attached_body_decompositions_[link - gsr->dfce_->link_names_.size()]->getSphereCenters());
+    }
   }
+  return true;
 }
 
-void ChompOptimizer::print_EigenSTL_vector_Vector3d(std::string name, EigenSTL::vector_Vector3d data)
+bool ChompOptimizer::getCollisionSphereGradients_uts(std::vector<collision_detection::GroupStateRepresentation>& gsr, 
+                                                     std::vector<std::vector<EigenSTL::vector_Vector3d>>& sphere_centers, 
+                                                     std::vector<std::vector<std::vector<collision_detection::CollisionSphere>>>& sphere_list)
 {
-  std::cout << name << std::endl;
-    for (size_t k = 0; k < data.size(); k++)
+  double tolerance = 1;
+  bool subtract_radii = false;
+  double maximum_value = 1;
+  bool stop_at_first_collision = false;
+  bool in_collision = false;
+
+  std::vector<std::vector<EigenSTL::vector_Vector3d>> grad;
+  std::vector<std::vector<std::vector<bool>>> in_bounds;
+  std::vector<std::vector<std::vector<double>>> dist;
+
+  getDistanceGradient_uts(sphere_centers, grad, dist, in_bounds);
+
+  for (unsigned int t_point = 0; t_point < sphere_list.size(); t_point++)
+  {
+    for (unsigned int joints = 0; joints < sphere_list[t_point].size(); joints++)
     {
-      std::cout << "\t" << data[k].x() << ", " << data[k].y() << ", " << data[k].z() << std::endl;
-    }
-}
+      for (unsigned int i = 0; i < sphere_list[t_point][joints].size(); i++)
+      {
+        if (dist[t_point][joints][i] < maximum_value)
+        {
+          if (subtract_radii)
+          {
+            dist[t_point][joints][i] -= sphere_list[t_point][joints][i].radius_;
 
-void ChompOptimizer::print_vector(std::string name, std::vector<double> data)
-{
-  std::cout << name << std::endl;
-  std::cout << "\t";
-    for (size_t k = 0; k < data.size(); k++)
-    {
-      std::cout << data[k] << ", ";
-    }
-    std::cout << std::endl;
-}
+            if ((dist[t_point][joints][i] < 0) && (-dist[t_point][joints][i] >= tolerance))
+            {
+              in_collision = true;
+            }
+          }
+          else
+          {
+            if (sphere_list[t_point][joints][i].radius_ - dist[t_point][joints][i] > tolerance)
+            {
+              in_collision = true;
+            }
+          }
 
-// void ChompOptimizer::print_CollisionType_vector(std::string name, std::vector<collision_detection::CollisionType> data)
-// {
-//   std::cout << name << std::endl;
-//   std::cout << "\t";
-//     for (size_t k = 0; k < data.size(); k++)
-//     {
-//       std::cout << print_CollisionType(data[k]) << ", ";
-//     }
-//     std::cout << std::endl;
-// }
+          if (dist[t_point][joints][i] < gsr[t_point].gradients_[joints].closest_distance)
+          {
+            gsr[t_point].gradients_[joints].closest_distance = dist[t_point][joints][i];
+          }
 
-// void ChompOptimizer::print_CollisionType(collision_detection::CollisionType data)
-// {
-//   switch (data)
-//   {
-//   case 0:
-//     std::cout << "NONE";
-//     break;
-//   case 1:
-//     std::cout << "SELF";
-//     break;
-//   case 2:
-//     std::cout << "INTRA";
-//     break;
-//   case 3:
-//     std::cout << "ENVIRONMENT";
-//     break;
+          if (dist[t_point][joints][i] < gsr[t_point].gradients_[joints].distances[i])
+          {
+            gsr[t_point].gradients_[joints].types[i] = collision_detection::ENVIRONMENT;
+            gsr[t_point].gradients_[joints].distances[i] = dist[t_point][joints][i];
+            gsr[t_point].gradients_[joints].gradients[i] = grad[t_point][joints][i];
+          }
+        }
   
-//   default:
-//     break;
-//   }
-// }
+      // if (stop_at_first_collision && in_collision)
+      // {
+      //   in_collision = true;
+      // }
+      }
+    }
+  }
+  return in_collision;
+}
 
-}  // namespace chomp
+bool ChompOptimizer::getDistanceGradient_uts(std::vector<std::vector<EigenSTL::vector_Vector3d>>& sphere_centers, 
+                                             std::vector<std::vector<EigenSTL::vector_Vector3d>>& grad, 
+                                             std::vector<std::vector<std::vector<double>>>& distance, 
+                                             std::vector<std::vector<std::vector<bool>>>& in_bounds)
+{
+  // static ros::NodeHandle nh("~");
+  // static ros::ServiceClient log_gpis_ = nh.serviceClient<gpismap_ros::GetDistanceGradient>("/query_dist_field");
+  gpismap_ros::GetDistanceGradient srv;
+  std::vector<double> temp;
+  // std::vector<double> v;
+
+  std::cout << "Node erstellt" << std::endl;
+
+  for(int t_point = 0; t_point < sphere_centers.size(); t_point++)
+  {
+    for(unsigned int joints = 0; joints < sphere_centers[t_point].size(); joints++)
+    {
+      for (unsigned int i = 0; i < sphere_centers[t_point][joints].size(); i++)
+      {
+        // std::vector<double> v (sphere_centers[t_point][joints][0].data(),sphere_centers[t_point][joints][0].data()+sphere_centers[t_point][joints].size()*3);
+        // std::vector<double> v = {sphere_centers[t_point][joints][i][0],sphere_centers[t_point][joints][i][1],sphere_centers[t_point][joints][2]};
+        // v.clear();
+        temp.push_back(sphere_centers[t_point][joints][i][0]);
+        temp.push_back(sphere_centers[t_point][joints][i][1]);
+        temp.push_back(sphere_centers[t_point][joints][i][2]);
+        // temp.insert(std::end(temp), std::begin(v), std::end(v));
+      }
+    }
+  }
+
+  std::cout << "Punkte flachgedrückt" << std::endl;
+
+  srv.request.points = temp;
+
+  if (log_gpis_.call(srv))
+  {
+    std::cout << "Service erfolgreich angerufen" << std::endl;
+
+    int counter = 0;
+    grad.resize(sphere_centers.size());
+    distance.resize(sphere_centers.size());
+    in_bounds.resize(sphere_centers.size());
+
+    for(int t_point=0;t_point < sphere_centers.size();t_point++)
+    {
+      grad[t_point].resize(sphere_centers[t_point].size());
+      distance[t_point].resize(sphere_centers[t_point].size());
+      in_bounds[t_point].resize(sphere_centers[t_point].size());
+
+      for(unsigned int joints = 0; joints < sphere_centers[t_point].size(); joints++)
+      {
+        grad[t_point][joints].resize(sphere_centers[t_point][joints].size());
+        distance[t_point][joints].resize(sphere_centers[t_point][joints].size());
+        in_bounds[t_point][joints].resize(sphere_centers[t_point][joints].size());
+        
+        for (unsigned int i = 0; i < sphere_centers[t_point][joints].size(); i++)
+        {
+          // grad[t_point][joints][i] = Eigen::Vector3d(srv.response.gradients[counter*3], srv.response.gradients[counter*3+1], srv.response.gradients[counter*3+2]);
+          // distance[t_point][joints][i] = srv.response.distances[counter];
+          // in_bounds[t_point][joints][i] = srv.response.in_bounds[counter];
+          counter++;
+        }
+      }
+      std::cout << "t_point: " << t_point+1 << " / " << sphere_centers.size() << std::endl;
+    }
+  }
+  else
+  {
+    ROS_ERROR("Failed to call service query_dist_field");
+    return false;
+  }
+  std::cout << "getDistanceGradient_uts ende" << std::endl;
+}
+
+}

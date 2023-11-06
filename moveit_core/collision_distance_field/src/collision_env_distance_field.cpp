@@ -1551,7 +1551,7 @@ void CollisionEnvDistanceField::getCollisionGradients(const CollisionRequest& re
 
   getSelfProximityGradients(gsr);
   getIntraGroupProximityGradients(gsr);
-  getEnvironmentProximityGradients(env_distance_field, gsr);
+  // getEnvironmentProximityGradients(env_distance_field, gsr);
 
   (const_cast<CollisionEnvDistanceField*>(this))->last_gsr_ = gsr;
 }
