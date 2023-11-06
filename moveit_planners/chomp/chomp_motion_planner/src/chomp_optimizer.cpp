@@ -1304,9 +1304,9 @@ bool ChompOptimizer::getDistanceGradient_uts(std::vector<std::vector<EigenSTL::v
         
         for (unsigned int i = 0; i < sphere_centers[t_point][joints].size(); i++)
         {
-          // grad[t_point][joints][i] = Eigen::Vector3d(srv.response.gradients[counter*3], srv.response.gradients[counter*3+1], srv.response.gradients[counter*3+2]);
-          // distance[t_point][joints][i] = srv.response.distances[counter];
-          // in_bounds[t_point][joints][i] = srv.response.in_bounds[counter];
+          grad[t_point][joints][i] = Eigen::Vector3d(srv.response.gradients[counter*3], srv.response.gradients[counter*3+1], srv.response.gradients[counter*3+2]);
+          distance[t_point][joints][i] = srv.response.distances[counter];
+          in_bounds[t_point][joints][i] = srv.response.in_bounds[counter];
           counter++;
         }
       }
