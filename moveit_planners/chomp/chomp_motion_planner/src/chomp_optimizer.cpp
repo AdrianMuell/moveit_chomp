@@ -932,6 +932,7 @@ void ChompOptimizer::performForwardKinematics()
 
   collision_spheres.resize(num_vars_all_);
   sphere_centers.resize(num_vars_all_);
+  gsr_vector.resize(num_vars_all_);
 
   // for each point in the trajectory
   for (int t_point = start; t_point <= end; ++t_point)
@@ -945,7 +946,7 @@ void ChompOptimizer::performForwardKinematics()
 
     hy_env_->getCollisionGradients(req, res, state_, nullptr, gsr_);
 
-    gsr_vector.push_back(*gsr_);
+    gsr_vector[t_point] = *gsr_;
 
     getCollisionSpheres_uts(gsr_,t_point,sphere_centers,collision_spheres);
 
@@ -953,7 +954,7 @@ void ChompOptimizer::performForwardKinematics()
 
   ros::WallTime grad = ros::WallTime::now();
 
-  getCollisionSphereGradients_uts(gsr_vector,sphere_centers,collision_spheres);
+  getCollisionSphereGradients_uts(gsr_vector,sphere_centers,collision_spheres, start, end);
 
   total_dur += (ros::WallTime::now() - grad);
 
@@ -1185,7 +1186,8 @@ bool ChompOptimizer::getCollisionSpheres_uts(collision_detection::GroupStateRepr
 
 bool ChompOptimizer::getCollisionSphereGradients_uts(std::vector<collision_detection::GroupStateRepresentation>& gsr, 
                                                      std::vector<std::vector<EigenSTL::vector_Vector3d>>& sphere_centers, 
-                                                     std::vector<std::vector<std::vector<collision_detection::CollisionSphere>>>& sphere_list)
+                                                     std::vector<std::vector<std::vector<collision_detection::CollisionSphere>>>& sphere_list,
+                                                     int start, int end)
 {
   double tolerance = 1;
   bool subtract_radii = false;
@@ -1197,9 +1199,9 @@ bool ChompOptimizer::getCollisionSphereGradients_uts(std::vector<collision_detec
   std::vector<std::vector<std::vector<bool>>> in_bounds;
   std::vector<std::vector<std::vector<double>>> dist;
 
-  getDistanceGradient_uts(sphere_centers, grad, dist, in_bounds);
-
-  for (unsigned int t_point = 0; t_point < sphere_list.size(); t_point++)
+  getDistanceGradient_uts(sphere_centers, grad, dist, in_bounds, start, end);
+  ROS_ERROR_STREAM_COND(sphere_centers.size() != sphere_list.size(), "SPHERE CENTERS AND LIST GOT DIFFERENT SIZES!");
+  for (unsigned int t_point = start; t_point < end; t_point++)
   {
     for (unsigned int joints = 0; joints < sphere_list[t_point].size(); joints++)
     {
@@ -1250,12 +1252,13 @@ bool ChompOptimizer::getCollisionSphereGradients_uts(std::vector<collision_detec
 bool ChompOptimizer::getDistanceGradient_uts(std::vector<std::vector<EigenSTL::vector_Vector3d>>& sphere_centers, 
                                              std::vector<std::vector<EigenSTL::vector_Vector3d>>& grad, 
                                              std::vector<std::vector<std::vector<double>>>& distance, 
-                                             std::vector<std::vector<std::vector<bool>>>& in_bounds)
+                                             std::vector<std::vector<std::vector<bool>>>& in_bounds,
+                                             int start, int end)
 {
   // static ros::NodeHandle nh("~");
   // static ros::ServiceClient log_gpis_ = nh.serviceClient<gpismap_ros::GetDistanceGradient>("/query_dist_field");
   gpismap_ros::GetDistanceGradient srv;
-  for(int t_point = 0; t_point < sphere_centers.size(); t_point++)
+  for(int t_point = start; t_point < end; t_point++)
   {
     for(int joints = 0; joints < sphere_centers[t_point].size(); joints++)
     {
@@ -1278,7 +1281,7 @@ bool ChompOptimizer::getDistanceGradient_uts(std::vector<std::vector<EigenSTL::v
     distance.resize(sphere_centers.size());
     in_bounds.resize(sphere_centers.size());
 
-    for(int t_point=0; t_point < sphere_centers.size(); t_point++)
+    for(int t_point=start; t_point < end; t_point++)
     {
       grad[t_point].resize(sphere_centers[t_point].size());
       distance[t_point].resize(sphere_centers[t_point].size());

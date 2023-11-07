@@ -230,12 +230,14 @@ private:
 
   bool getCollisionSphereGradients_uts(std::vector<collision_detection::GroupStateRepresentation>& gsr, 
                                        std::vector<std::vector<EigenSTL::vector_Vector3d>>& sphere_centers, 
-                                       std::vector<std::vector<std::vector<collision_detection::CollisionSphere>>>& sphere_list);
+                                       std::vector<std::vector<std::vector<collision_detection::CollisionSphere>>>& sphere_list,
+                                       int start, int end);
 
   bool getDistanceGradient_uts(std::vector<std::vector<EigenSTL::vector_Vector3d>>& sphere_centers, 
                                std::vector<std::vector<EigenSTL::vector_Vector3d>>& grad, 
                                std::vector<std::vector<std::vector<double>>>& dist, 
-                               std::vector<std::vector<std::vector<bool>>>& in_bounds);
+                               std::vector<std::vector<std::vector<bool>>>& in_bounds,
+                               int start, int end);
 
   ros::NodeHandle *n_;
   ros::ServiceClient log_gpis_;
