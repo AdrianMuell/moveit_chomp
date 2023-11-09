@@ -4,7 +4,7 @@
   <arg name="debug" default="false" />
   <arg unless="$(arg debug)" name="launch_prefix" value="" />
   <arg     if="$(arg debug)" name="launch_prefix"
-           value="gdb -x $(find ur5e_moveit_config)/launch/gdb_settings.gdb --ex run --args" />
+           value="gdb -x $(find ur5e_moveit_config)/launch/gdb_settings.gdb --args" />
 
   <!-- Verbose Mode Option -->
   <arg name="info" default="$(arg debug)" />
@@ -67,7 +67,7 @@
 
     <param name="allow_trajectory_execution" value="$(arg allow_trajectory_execution)"/>
     <param name="max_safe_path_cost" value="$(arg max_safe_path_cost)"/>
-    <param name="jiggle_fraction" value="$(arg jiggle_fraction)"/>
+    <param name="jiggle_fraction" value="$(arg jiggle_fraction)" />
     <param name="capabilities" value="$(arg capabilities)"/>
     <param name="disable_capabilities" value="$(arg disable_capabilities)"/>
 
