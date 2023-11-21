@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.1.3)
 project(chomp_motion_planner)
 
+set(CMAKE_CXX_FLAGS "-O3 -ggdb")
+
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   moveit_core
