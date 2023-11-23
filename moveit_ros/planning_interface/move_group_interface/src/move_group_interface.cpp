@@ -123,7 +123,7 @@ public:
     can_look_ = false;
     look_around_attempts_ = 0;
     can_replan_ = false;
-    replan_delay_ = 2.0;
+    replan_delay_ = 0;
     replan_attempts_ = 1;
     allowed_planning_time_ = DEFAULT_ALLOWED_PLANNING_TIME;
     num_planning_attempts_ = DEFAULT_NUM_PLANNING_ATTEMPTS;

@@ -342,7 +342,7 @@ bool ChompOptimizer::optimize()
     handleJointLimits();
     updateFullTrajectory();
 
-    if (iteration_ % 10 == 0)
+    if (iteration_ % 2 == 0)
     {
       ROS_INFO("iteration: %d", iteration_);
       if (isCurrentTrajectoryMeshToMeshCollisionFree())
